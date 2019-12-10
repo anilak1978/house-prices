@@ -1,0 +1,1067 @@
+---
+title: "Data 605 Final Project"
+author: Anil Akyildirim
+date: "10/19/2019"
+output:
+  html_document:
+    code_download: yes
+    code_folding: hide
+    highlight: pygments
+    number_sections: yes
+    theme: flatly
+    toc: yes
+    toc_float: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(purrr)
+library(ggcorrplot)
+
+
+```
+
+
+# Problem 1
+
+Using R, generate a random variable X that has 10,000 random uniform numbers from 1 to N, where N can be any number of your choosing greater than or equal to 6.  Then generate a random variable Y that has 10,000 random normal numbers with a mean of $\mu=\sigma=(N+1)/2$
+
+## Generate Random Variable X
+
+```{r}
+
+N <- runif(1,6,100)
+n <- 10000
+X <- runif(n, min=0, max=N)
+
+hist(X)
+
+
+```
+
+## Generate Random Variable Y
+
+
+```{r}
+m <- (N+1)/2 # mean
+sd <- (N+1)/2 # standard deviation
+n <- 10000 # number of trials
+Y <- rnorm(n, m, sd)
+hist(Y)
+
+
+```
+
+## Probability
+
+Calculate as a minimum the below probabilities a through c.  Assume the small letter "x" is estimated as the median of the X variable, and the small letter "y" is estimated as the 1st quartile of the Y variable.  Interpret the meaning of all probabilities.
+
+**x is median of X**
+
+**y is 1st quartile of Y**
+
+(a) $P(X>x | X>y)$ => Probability of X is greater than median of X given that X is greater than first quartile of Y. 
+
+```{r}
+
+x <- median(X)
+y <- quantile(Y, 0.25)[[1]]
+x
+y
+
+
+```
+
+$P(X>x | X>y)=\frac{P(X>x, X>y)}{P(X>y)}$
+
+
+$P(X>x, X>y)$ => sum of all the posibilities where X >x and X > y , divided by all the possibilities for X
+
+$P(X>y)$ => sum of all the possibilities where X>y, divided by all the possibilities for x
+
+```{r}
+p_1 <- sum(X>x & X >y)/n
+p_2 <- sum(X>y)/n
+p_3 <- p_1/p_2
+p_3
+
+```
+
+**This means the probability of X being greater than X's median given X being greater than Y's first quartile is 60%**
+
+
+(b) $P(X>x, Y>y)$ => Probability of X is greater than all possible median of X and Y is greater than all possible quantile of Y.
+
+$P(X>x, Y>y)$ => Sum of all the possibilities where X>x and Y>y, divided by all the possibilities of X
+
+```{r}
+p_4 <- sum(X>x & Y>y)/n
+p_4
+
+
+```
+
+**This means the probability of X being greater than median of X and Y being greater than first quartile of Y is 37%**
+
+
+(c) $P(X<x | X>y)$ => Probability of X is smaller than median of X and X is greater than first quantile of Y.
+
+$P(X<x, X>y)$ => Sum of all the possibilities where X < x and X > y, divided by all the possibilities of X
+
+```{r}
+p_5 <- sum(X<x & X>y)/n
+p_5
+
+
+
+```
+
+**This means the probability of X being smaller than median of X and X being greater than first quartile of Y is 34%**
+
+
+## Investigate Condition.
+
+Investigate whether P(X>x and Y>y)=P(X>x)P(Y>y) by building a table and evaluating the marginal and joint probabilities.
+
+```{r}
+a <- sum(X>x & Y<y) # all possibilities where X >x and Y>y
+b <- sum(X>x & Y>y) # all possibilities where X>x and Y<y
+c <- sum(X<x & Y<y) # all possibilities where X<x and Y<y
+d <- sum(X<x & Y>y) # all possibilities where X<x and Y>y
+total_1 <- a+c
+total_2 <- b+d
+total_3 <- a+b
+total_4 <- c+d
+total_5 <- total_3+total_4
+
+p_a <- a/n
+p_b <- b/n
+p_c <- c/n
+p_d <- d/n
+p_total_1 <- total_1/n
+p_total_2 <- total_2/n
+p_total_3 <- total_3/n
+p_total_4 <- total_4/n
+p_total_5 <- total_5/n
+
+conditions_table <- matrix(c(p_a, p_b, p_total_3, p_c, p_d, p_total_4, p_total_1, p_total_2, p_total_5), nrow = 3, ncol = 3)
+conditions_df <- as.data.frame(conditions_table)
+names(conditions_df) <- c("X>x", "X<x", "Total")
+row.names(conditions_df) <- c("Y<y", "Y>y", "Total")
+
+conditions_df
+
+```
+
+Based on the table $P(X>x and Y>y)=0.372$ and $P(X>x)P(Y>y)=0.5*0.75=0.375$ .
+
+## Independence Fisher's Exact Test and Chi Square Test
+
+**Check to see if independence holds by using Fisher’s Exact Test and the Chi Square Test.  What is the difference between the two? Which is most appropriate?**
+
+```{r}
+matrix <- matrix(c(a,b,c,d), nrow = 2, ncol = 2)
+
+fisher.test(matrix, simulate.p.value = TRUE)
+
+```
+
+
+```{r}
+
+chisq.test(matrix, correct=TRUE)
+
+
+```
+
+We use Fisher's Exact Test if the sample size is small. We use Chi-Squared test as it will be more accurate in this case. 
+
+# Problem 2
+
+Register for Kaggle.com (free) and compete in the House Prices: Advanced Regression Techniques competition.  https://www.kaggle.com/c/house-prices-advanced-regression-techniques 
+
+## Load Data
+
+
+```{r}
+
+df_train <- read.csv("https://raw.githubusercontent.com/anilak1978/house-prices/master/train.csv")
+df_test <- read.csv("https://raw.githubusercontent.com/anilak1978/house-prices/master/test.csv")
+head(df_train)
+head(df_test)
+
+```
+
+## About the Data Sets
+
+MSSubClass: Identifies the type of dwelling involved in the sale.	
+
+        20	1-STORY 1946 & NEWER ALL STYLES
+        30	1-STORY 1945 & OLDER
+        40	1-STORY W/FINISHED ATTIC ALL AGES
+        45	1-1/2 STORY - UNFINISHED ALL AGES
+        50	1-1/2 STORY FINISHED ALL AGES
+        60	2-STORY 1946 & NEWER
+        70	2-STORY 1945 & OLDER
+        75	2-1/2 STORY ALL AGES
+        80	SPLIT OR MULTI-LEVEL
+        85	SPLIT FOYER
+        90	DUPLEX - ALL STYLES AND AGES
+       120	1-STORY PUD (Planned Unit Development) - 1946 & NEWER
+       150	1-1/2 STORY PUD - ALL AGES
+       160	2-STORY PUD - 1946 & NEWER
+       180	PUD - MULTILEVEL - INCL SPLIT LEV/FOYER
+       190	2 FAMILY CONVERSION - ALL STYLES AND AGES
+
+MSZoning: Identifies the general zoning classification of the sale.
+		
+       A	Agriculture
+       C	Commercial
+       FV	Floating Village Residential
+       I	Industrial
+       RH	Residential High Density
+       RL	Residential Low Density
+       RP	Residential Low Density Park 
+       RM	Residential Medium Density
+	
+LotFrontage: Linear feet of street connected to property
+
+LotArea: Lot size in square feet
+
+Street: Type of road access to property
+
+       Grvl	Gravel	
+       Pave	Paved
+       	
+Alley: Type of alley access to property
+
+       Grvl	Gravel
+       Pave	Paved
+       NA 	No alley access
+		
+LotShape: General shape of property
+
+       Reg	Regular	
+       IR1	Slightly irregular
+       IR2	Moderately Irregular
+       IR3	Irregular
+       
+LandContour: Flatness of the property
+
+       Lvl	Near Flat/Level	
+       Bnk	Banked - Quick and significant rise from street grade to building
+       HLS	Hillside - Significant slope from side to side
+       Low	Depression
+		
+Utilities: Type of utilities available
+		
+       AllPub	All public Utilities (E,G,W,& S)	
+       NoSewr	Electricity, Gas, and Water (Septic Tank)
+       NoSeWa	Electricity and Gas Only
+       ELO	Electricity only	
+	
+LotConfig: Lot configuration
+
+       Inside	Inside lot
+       Corner	Corner lot
+       CulDSac	Cul-de-sac
+       FR2	Frontage on 2 sides of property
+       FR3	Frontage on 3 sides of property
+	
+LandSlope: Slope of property
+		
+       Gtl	Gentle slope
+       Mod	Moderate Slope	
+       Sev	Severe Slope
+	
+Neighborhood: Physical locations within Ames city limits
+
+       Blmngtn	Bloomington Heights
+       Blueste	Bluestem
+       BrDale	Briardale
+       BrkSide	Brookside
+       ClearCr	Clear Creek
+       CollgCr	College Creek
+       Crawfor	Crawford
+       Edwards	Edwards
+       Gilbert	Gilbert
+       IDOTRR	Iowa DOT and Rail Road
+       MeadowV	Meadow Village
+       Mitchel	Mitchell
+       Names	North Ames
+       NoRidge	Northridge
+       NPkVill	Northpark Villa
+       NridgHt	Northridge Heights
+       NWAmes	Northwest Ames
+       OldTown	Old Town
+       SWISU	South & West of Iowa State University
+       Sawyer	Sawyer
+       SawyerW	Sawyer West
+       Somerst	Somerset
+       StoneBr	Stone Brook
+       Timber	Timberland
+       Veenker	Veenker
+			
+Condition1: Proximity to various conditions
+	
+       Artery	Adjacent to arterial street
+       Feedr	Adjacent to feeder street	
+       Norm	Normal	
+       RRNn	Within 200' of North-South Railroad
+       RRAn	Adjacent to North-South Railroad
+       PosN	Near positive off-site feature--park, greenbelt, etc.
+       PosA	Adjacent to postive off-site feature
+       RRNe	Within 200' of East-West Railroad
+       RRAe	Adjacent to East-West Railroad
+	
+Condition2: Proximity to various conditions (if more than one is present)
+		
+       Artery	Adjacent to arterial street
+       Feedr	Adjacent to feeder street	
+       Norm	Normal	
+       RRNn	Within 200' of North-South Railroad
+       RRAn	Adjacent to North-South Railroad
+       PosN	Near positive off-site feature--park, greenbelt, etc.
+       PosA	Adjacent to postive off-site feature
+       RRNe	Within 200' of East-West Railroad
+       RRAe	Adjacent to East-West Railroad
+	
+BldgType: Type of dwelling
+		
+       1Fam	Single-family Detached	
+       2FmCon	Two-family Conversion; originally built as one-family dwelling
+       Duplx	Duplex
+       TwnhsE	Townhouse End Unit
+       TwnhsI	Townhouse Inside Unit
+	
+HouseStyle: Style of dwelling
+	
+       1Story	One story
+       1.5Fin	One and one-half story: 2nd level finished
+       1.5Unf	One and one-half story: 2nd level unfinished
+       2Story	Two story
+       2.5Fin	Two and one-half story: 2nd level finished
+       2.5Unf	Two and one-half story: 2nd level unfinished
+       SFoyer	Split Foyer
+       SLvl	Split Level
+	
+OverallQual: Rates the overall material and finish of the house
+
+       10	Very Excellent
+       9	Excellent
+       8	Very Good
+       7	Good
+       6	Above Average
+       5	Average
+       4	Below Average
+       3	Fair
+       2	Poor
+       1	Very Poor
+	
+OverallCond: Rates the overall condition of the house
+
+       10	Very Excellent
+       9	Excellent
+       8	Very Good
+       7	Good
+       6	Above Average	
+       5	Average
+       4	Below Average	
+       3	Fair
+       2	Poor
+       1	Very Poor
+		
+YearBuilt: Original construction date
+
+YearRemodAdd: Remodel date (same as construction date if no remodeling or additions)
+
+RoofStyle: Type of roof
+
+       Flat	Flat
+       Gable	Gable
+       Gambrel	Gabrel (Barn)
+       Hip	Hip
+       Mansard	Mansard
+       Shed	Shed
+		
+RoofMatl: Roof material
+
+       ClyTile	Clay or Tile
+       CompShg	Standard (Composite) Shingle
+       Membran	Membrane
+       Metal	Metal
+       Roll	Roll
+       Tar&Grv	Gravel & Tar
+       WdShake	Wood Shakes
+       WdShngl	Wood Shingles
+		
+Exterior1st: Exterior covering on house
+
+       AsbShng	Asbestos Shingles
+       AsphShn	Asphalt Shingles
+       BrkComm	Brick Common
+       BrkFace	Brick Face
+       CBlock	Cinder Block
+       CemntBd	Cement Board
+       HdBoard	Hard Board
+       ImStucc	Imitation Stucco
+       MetalSd	Metal Siding
+       Other	Other
+       Plywood	Plywood
+       PreCast	PreCast	
+       Stone	Stone
+       Stucco	Stucco
+       VinylSd	Vinyl Siding
+       Wd Sdng	Wood Siding
+       WdShing	Wood Shingles
+	
+Exterior2nd: Exterior covering on house (if more than one material)
+
+       AsbShng	Asbestos Shingles
+       AsphShn	Asphalt Shingles
+       BrkComm	Brick Common
+       BrkFace	Brick Face
+       CBlock	Cinder Block
+       CemntBd	Cement Board
+       HdBoard	Hard Board
+       ImStucc	Imitation Stucco
+       MetalSd	Metal Siding
+       Other	Other
+       Plywood	Plywood
+       PreCast	PreCast
+       Stone	Stone
+       Stucco	Stucco
+       VinylSd	Vinyl Siding
+       Wd Sdng	Wood Siding
+       WdShing	Wood Shingles
+	
+MasVnrType: Masonry veneer type
+
+       BrkCmn	Brick Common
+       BrkFace	Brick Face
+       CBlock	Cinder Block
+       None	None
+       Stone	Stone
+	
+MasVnrArea: Masonry veneer area in square feet
+
+ExterQual: Evaluates the quality of the material on the exterior 
+		
+       Ex	Excellent
+       Gd	Good
+       TA	Average/Typical
+       Fa	Fair
+       Po	Poor
+		
+ExterCond: Evaluates the present condition of the material on the exterior
+		
+       Ex	Excellent
+       Gd	Good
+       TA	Average/Typical
+       Fa	Fair
+       Po	Poor
+		
+Foundation: Type of foundation
+		
+       BrkTil	Brick & Tile
+       CBlock	Cinder Block
+       PConc	Poured Contrete	
+       Slab	Slab
+       Stone	Stone
+       Wood	Wood
+		
+BsmtQual: Evaluates the height of the basement
+
+       Ex	Excellent (100+ inches)	
+       Gd	Good (90-99 inches)
+       TA	Typical (80-89 inches)
+       Fa	Fair (70-79 inches)
+       Po	Poor (<70 inches
+       NA	No Basement
+		
+BsmtCond: Evaluates the general condition of the basement
+
+       Ex	Excellent
+       Gd	Good
+       TA	Typical - slight dampness allowed
+       Fa	Fair - dampness or some cracking or settling
+       Po	Poor - Severe cracking, settling, or wetness
+       NA	No Basement
+	
+BsmtExposure: Refers to walkout or garden level walls
+
+       Gd	Good Exposure
+       Av	Average Exposure (split levels or foyers typically score average or above)	
+       Mn	Mimimum Exposure
+       No	No Exposure
+       NA	No Basement
+	
+BsmtFinType1: Rating of basement finished area
+
+       GLQ	Good Living Quarters
+       ALQ	Average Living Quarters
+       BLQ	Below Average Living Quarters	
+       Rec	Average Rec Room
+       LwQ	Low Quality
+       Unf	Unfinshed
+       NA	No Basement
+		
+BsmtFinSF1: Type 1 finished square feet
+
+BsmtFinType2: Rating of basement finished area (if multiple types)
+
+       GLQ	Good Living Quarters
+       ALQ	Average Living Quarters
+       BLQ	Below Average Living Quarters	
+       Rec	Average Rec Room
+       LwQ	Low Quality
+       Unf	Unfinshed
+       NA	No Basement
+
+BsmtFinSF2: Type 2 finished square feet
+
+BsmtUnfSF: Unfinished square feet of basement area
+
+TotalBsmtSF: Total square feet of basement area
+
+Heating: Type of heating
+		
+       Floor	Floor Furnace
+       GasA	Gas forced warm air furnace
+       GasW	Gas hot water or steam heat
+       Grav	Gravity furnace	
+       OthW	Hot water or steam heat other than gas
+       Wall	Wall furnace
+		
+HeatingQC: Heating quality and condition
+
+       Ex	Excellent
+       Gd	Good
+       TA	Average/Typical
+       Fa	Fair
+       Po	Poor
+		
+CentralAir: Central air conditioning
+
+       N	No
+       Y	Yes
+		
+Electrical: Electrical system
+
+       SBrkr	Standard Circuit Breakers & Romex
+       FuseA	Fuse Box over 60 AMP and all Romex wiring (Average)	
+       FuseF	60 AMP Fuse Box and mostly Romex wiring (Fair)
+       FuseP	60 AMP Fuse Box and mostly knob & tube wiring (poor)
+       Mix	Mixed
+		
+1stFlrSF: First Floor square feet
+ 
+2ndFlrSF: Second floor square feet
+
+LowQualFinSF: Low quality finished square feet (all floors)
+
+GrLivArea: Above grade (ground) living area square feet
+
+BsmtFullBath: Basement full bathrooms
+
+BsmtHalfBath: Basement half bathrooms
+
+FullBath: Full bathrooms above grade
+
+HalfBath: Half baths above grade
+
+Bedroom: Bedrooms above grade (does NOT include basement bedrooms)
+
+Kitchen: Kitchens above grade
+
+KitchenQual: Kitchen quality
+
+       Ex	Excellent
+       Gd	Good
+       TA	Typical/Average
+       Fa	Fair
+       Po	Poor
+       	
+TotRmsAbvGrd: Total rooms above grade (does not include bathrooms)
+
+Functional: Home functionality (Assume typical unless deductions are warranted)
+
+       Typ	Typical Functionality
+       Min1	Minor Deductions 1
+       Min2	Minor Deductions 2
+       Mod	Moderate Deductions
+       Maj1	Major Deductions 1
+       Maj2	Major Deductions 2
+       Sev	Severely Damaged
+       Sal	Salvage only
+		
+Fireplaces: Number of fireplaces
+
+FireplaceQu: Fireplace quality
+
+       Ex	Excellent - Exceptional Masonry Fireplace
+       Gd	Good - Masonry Fireplace in main level
+       TA	Average - Prefabricated Fireplace in main living area or Masonry Fireplace in basement
+       Fa	Fair - Prefabricated Fireplace in basement
+       Po	Poor - Ben Franklin Stove
+       NA	No Fireplace
+		
+GarageType: Garage location
+		
+       2Types	More than one type of garage
+       Attchd	Attached to home
+       Basment	Basement Garage
+       BuiltIn	Built-In (Garage part of house - typically has room above garage)
+       CarPort	Car Port
+       Detchd	Detached from home
+       NA	No Garage
+		
+GarageYrBlt: Year garage was built
+		
+GarageFinish: Interior finish of the garage
+
+       Fin	Finished
+       RFn	Rough Finished	
+       Unf	Unfinished
+       NA	No Garage
+		
+GarageCars: Size of garage in car capacity
+
+GarageArea: Size of garage in square feet
+
+GarageQual: Garage quality
+
+       Ex	Excellent
+       Gd	Good
+       TA	Typical/Average
+       Fa	Fair
+       Po	Poor
+       NA	No Garage
+		
+GarageCond: Garage condition
+
+       Ex	Excellent
+       Gd	Good
+       TA	Typical/Average
+       Fa	Fair
+       Po	Poor
+       NA	No Garage
+		
+PavedDrive: Paved driveway
+
+       Y	Paved 
+       P	Partial Pavement
+       N	Dirt/Gravel
+		
+WoodDeckSF: Wood deck area in square feet
+
+OpenPorchSF: Open porch area in square feet
+
+EnclosedPorch: Enclosed porch area in square feet
+
+3SsnPorch: Three season porch area in square feet
+
+ScreenPorch: Screen porch area in square feet
+
+PoolArea: Pool area in square feet
+
+PoolQC: Pool quality
+		
+       Ex	Excellent
+       Gd	Good
+       TA	Average/Typical
+       Fa	Fair
+       NA	No Pool
+		
+Fence: Fence quality
+		
+       GdPrv	Good Privacy
+       MnPrv	Minimum Privacy
+       GdWo	Good Wood
+       MnWw	Minimum Wood/Wire
+       NA	No Fence
+	
+MiscFeature: Miscellaneous feature not covered in other categories
+		
+       Elev	Elevator
+       Gar2	2nd Garage (if not described in garage section)
+       Othr	Other
+       Shed	Shed (over 100 SF)
+       TenC	Tennis Court
+       NA	None
+		
+MiscVal: $Value of miscellaneous feature
+
+MoSold: Month Sold (MM)
+
+YrSold: Year Sold (YYYY)
+
+SaleType: Type of sale
+		
+       WD 	Warranty Deed - Conventional
+       CWD	Warranty Deed - Cash
+       VWD	Warranty Deed - VA Loan
+       New	Home just constructed and sold
+       COD	Court Officer Deed/Estate
+       Con	Contract 15% Down payment regular terms
+       ConLw	Contract Low Down payment and low interest
+       ConLI	Contract Low Interest
+       ConLD	Contract Low Down
+       Oth	Other
+		
+SaleCondition: Condition of sale
+
+       Normal	Normal Sale
+       Abnorml	Abnormal Sale -  trade, foreclosure, short sale
+       AdjLand	Adjoining Land Purchase
+       Alloca	Allocation - two linked properties with separate deeds, typically condo with a garage unit	
+       Family	Sale between family members
+       Partial	Home was not completed when last assessed (associated with New Homes)
+
+
+## Descriptive and Inferential Statistics
+
+Provide univariate descriptive statistics and appropriate plots for the training data set.  Provide a scatterplot matrix for at least two of the independent variables and the dependent variable. Derive a correlation matrix for any three quantitative variables in the dataset.  Test the hypotheses that the correlations between each pairwise set of variables is 0 and provide an 80% confidence interval.  Discuss the meaning of your analysis.  Would you be worried about familywise error? Why or why not?
+
+
+### Descriptive Statistics and Plots for Training Dataset
+
+```{r}
+
+str(df_train)
+
+```
+
+```{r}
+summary(df_train)
+
+```
+
+We can look at LotArea, Neighborhood, SalePrice, HouseStyle and OverallCondition variables in more detail.
+
+```{r}
+summary(df_train$LotArea)
+
+```
+
+The average Lot Area in the datasaet is 10517 square feet. Maximum lot size is 215245 square feet.
+
+```{r}
+
+summary(df_train$SalePrice)
+
+```
+
+The average Sale Price in the dataset is 180944. The meximum Sale Price is 755000.
+
+
+```{r}
+
+hist(df_train$SalePrice)
+
+
+```
+
+```{r}
+theme_set(theme_classic())
+ggplot(df_train, aes(HouseStyle))+
+  geom_bar(aes(fill=Neighborhood))
+
+
+```
+
+Majority of the houses are 1 or 2 story style houses.
+
+```{r}
+theme_set(theme_classic())
+df_train$OverallCond_factor <- as.factor(as.character(df_train$OverallCond))
+ggplot(df_train, aes(OverallCond, SalePrice))+
+  geom_boxplot(aes(fill=OverallCond_factor))
+
+```
+
+Condition of the house has a poistive correlation with SalePrice.
+
+```{r}
+theme_set(theme_classic())
+ggplot(df_train, aes(Neighborhood, SalePrice))+
+  geom_boxplot(varwidth = T, fill="plum")+
+  coord_flip()
+
+
+
+```
+
+### Scatter Matrix Correlation
+
+```{r}
+
+df_train_1 <- select(df_train, Id, SalePrice, LotArea, YearBuilt, OverallCond, OverallQual)
+head(df_train_1)
+
+df_test_1 <- select(df_test, Id, LotArea, YearBuilt, OverallCond, OverallQual)
+
+
+
+```
+
+```{r}
+corr <- cor(df_train_1)
+
+ggcorrplot(corr, hc.order=TRUE,
+           type = "lower",
+           lab=TRUE,
+           lab_size = 3,
+           method = "circle",
+           colors = c("tomato2", "white", "springgreen3"),
+           title = "Correlogram of House Train Data Set",
+           ggtheme=theme_bw())
+
+
+```
+
+```{r}
+theme_set(theme_bw())
+ggplot(df_train_1, aes(OverallQual, SalePrice))+
+  geom_jitter(width=10, size=1)
+
+
+
+
+```
+
+
+
+## Hypotheses 
+
+$H_{0}$ : The correlations between each pairwise set of variables is 0. 
+
+Confidence interval is 80%. 
+
+1- Look at the p-value of each variable that is in df_train_1 for correlation
+2- 0.80 is the confidence level.
+
+(a): Sale Price Vs OverallQual
+
+```{r}
+
+cor.test(df_train_1$SalePrice, df_train_1$OverallQual, conf.level = 0.80)
+
+```
+
+
+(b): Sale Price VS YearBuilt
+
+```{r}
+
+cor.test(df_train_1$SalePrice, df_train_1$YearBuilt , conf.level = 0.80)
+
+```
+
+(c): Sale Price VS LotArea
+
+```{r}
+
+cor.test(df_train_1$SalePrice, df_train_1$LotArea  , conf.level = 0.80)
+
+```
+
+### Discuss the Meaning
+
+We are 80% confident that , with low P value for LotArea, YearBuilt and OverallQuall are somehow correlated to SalePrice.
+
+## Linear Algebra and Correlation
+
+Invert your correlation matrix from above. (This is known as the precision matrix and contains variance inflation factors on the diagonal.) Multiply the correlation matrix by the precision matrix, and then multiply the precision matrix by the correlation matrix. Conduct LU decomposition on the matrix.
+
+
+### Precision Matrix
+
+
+**Invert your correlation matrix from above. (This is known as the precision matrix and contains variance inflation factors on the diagonal.)**
+
+```{r}
+library(MASS)
+precision_matrix <- solve(corr)
+precision_matrix
+
+
+```
+
+### Multiply correlation and precision Matrix
+
+** Multiply the correlation matrix by the precision matrix, and then multiply the precision matrix by the correlation matrix.**
+
+
+```{r}
+
+mult_1 <- corr %*% precision_matrix
+mult_2 <- precision_matrix %*% corr
+mult_1
+mult_2
+
+
+
+```
+
+### LU Decomposition on the Matrix 
+
+**Conduct LU decomposition on the matrix.**
+
+```{r}
+library(matrixcalc)
+
+```
+
+```{r}
+lu_matrix <- lu.decomposition(precision_matrix)
+lu_matrix
+
+```
+
+
+## Calculus-Based Probability & Statistics
+
+Many times, it makes sense to fit a closed form distribution to data.  Select a variable in the Kaggle.com training dataset that is skewed to the right, shift it so that the minimum value is absolutely above zero if necessary.  Then load the MASS package and run fitdistr to fit an exponential probability density function.  (See  https://stat.ethz.ch/R-manual/R-devel/library/MASS/html/fitdistr.html ).  Find the optimal value of $\lambda$ for this distribution, and then take 1000 samples from this exponential distribution using this value (e.g., rexp(1000, $\lambda$)).  Plot a histogram and compare it with a histogram of your original variable.   Using the exponential pdf, find the 5th and 95th percentiles using the cumulative distribution function (CDF).   Also generate a 95% confidence interval from the empirical data, assuming normality.  Finally, provide the empirical 5th percentile and 95th percentile of the data.  Discuss.
+
+
+**Select a variable in the Kaggle.com training dataset that is skewed to the right, shift it so that the minimum value is absolutely above zero if necessary. Then load the MASS package and run fitdistr to fit an exponential probability density function**
+
+```{r}
+lot_area <- df_train_1$LotArea
+fit <- fitdistr(lot_area, "exponential")
+fit
+
+
+```
+
+**Find the optimal value of $\lambda$ for this distribution, and then take 1000 samples from this exponential distribution using this value (e.g., rexp(1000, $\lambda$)).  Plot a histogram and compare it with a histogram of your original variable. **
+
+```{r}
+
+opt <- fit$estimate
+dist <- rexp(1000, opt)
+hist(dist, breaks=50)
+hist(lot_area, breaks = 100)
+
+```
+
+**Using the exponential pdf, find the 5th and 95th percentiles using the cumulative distribution function (CDF).**
+
+
+```{r}
+
+quantile(dist, probs = c(0.05, 0.95))
+
+
+```
+
+**Also generate a 95% confidence interval from the empirical data, assuming normality.**
+
+```{r}
+
+mean(lot_area)
+normal_dist <- rnorm(length(lot_area), mean(lot_area), sd(lot_area))
+hist(normal_dist, breaks = 100)
+quantile(normal_dist, probs = c(0.05, 0.95))
+
+```
+
+**Finally, provide the empirical 5th percentile and 95th percentile of the data**
+
+```{r}
+
+quantile(lot_area, probs = c(0.05, 0.095))
+
+
+```
+
+
+## Modeling
+
+Build some type of multiple regression  model and submit your model to the competition board.  Provide your complete model summary and results with analysis.  Report your Kaggle.com user name and score.
+
+
+```{r}
+
+head(df_train_1)
+
+```
+
+## Model Development
+
+```{r}
+
+
+linear_model <- lm(df_train_1$SalePrice ~ df_train_1$LotArea + df_train_1$YearBuilt + df_train_1$OverallCond + df_train_1$OverallQual)
+summary(linear_model)
+
+```
+
+## Model Evaluation
+
+```{r}
+qqnorm(linear_model$residuals)
+qqline(linear_model$residuals)
+
+
+```
+
+```{r}
+
+hist(linear_model$residuals, breaks = 100)
+
+```
+
+
+
+```{r}
+
+sale_price <- function (LotArea, YearBuilt, OverallCond, OverallQual){
+  sale_price <- (-7.984e+05 + 1.500e+00*LotArea + 3.572e+02*YearBuilt + 2.736e+03 * OverallCond + 4.003e+04 * OverallQual)
+  return(sale_price)
+}
+
+bckwrd <- sale_price(df_train_1$LotArea, df_train_1$YearBuilt, df_train_1$OverallCond, df_train_1$OverallQual)
+
+comparison <-data.frame(df_train_1$SalePrice, bckwrd, bckwrd - df_train_1$SalePrice)
+head(comparison)
+
+
+
+```
+
+
+
+```{r}
+head(df_test_1)
+
+```
+
+```{r}
+AIC(linear_model)
+BIC(linear_model)
+
+
+```
+
+```{r}
+prediction <- predict(linear_model, df_test_1)
+
+predict_df <- data.frame(Id=df_test_1$Id,SalePrice=prediction)
+
+predict_df$SalePrice <- ifelse(predict_df$SalePrice < 0,0,predict_df$SalePrice)
+
+#export to csv
+#write.csv(predict_df, "prediction_results.csv", row.names = FALSE)
+
+```
+
+**Prediction are submitted to Kaggle for results**
+
+![](http://airlocked50.com/wp-content/uploads/2019/12/Kaggle-submission.jpg) 
